@@ -94,7 +94,7 @@ int is_sorted(t_stack *stack)
 void sort_small(t_stack **a, t_stack **b)
 {
     int size = stack_size(*a);
-
+    (void)b;
     if (size == 2)
     {
         if ((*a)->value > (*a)->next->value)
