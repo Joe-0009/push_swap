@@ -46,7 +46,10 @@ int find_hold_first(t_stack *stack, int min, int max);
 int find_hold_second(t_stack *stack, int min, int max);
 int has_values_in_range(t_stack *stack, int min, int max);
 void rotate_to_top(t_stack **a, int value);
-
+int has_numbers_below(t_stack *stack, int value);
+int get_next_small(t_stack *stack, int value);
+int find_closest_in_range(t_stack *stack, int min_val, int max_val);
+int has_numbers_in_range(t_stack *stack, int min_val, int max_val);
 // Sorting functions
 void sort_three(t_stack **a);
 void sort_five(t_stack **a, t_stack **b);
@@ -338,44 +341,208 @@ int get_position(t_stack *stack, int value)
     }
     return pos;
 }
+int find_optimal_position_b(t_stack *b, int value)
+{
+    t_stack *current;
+    int pos;
+    int max;
+    int min;
+
+    if (!b)
+        return 0;
+    max = find_max(b);
+    min = find_min(b);
+    pos = 0;
+    current = b;
+    if (value > max || value < min)
+        return get_position(b, max);
+    while (current->next)
+    {
+        if (value > current->value && value < current->next->value)
+            return pos + 1;
+        pos++;
+        current = current->next;
+    }
+    return pos;
+}
 
 void chunk_sort(t_stack **a, t_stack **b)
 {
-    int size;
-    int chunk_count;
-    int chunk_size;
-    int *chunks;
-    int i;
-    int max;
-    
-    size = stack_size(*a);
-    chunk_count = 4; 
-    chunk_size = size / chunk_count;
-    chunks = create_chunks(*a, chunk_size, chunk_count);
-    i = 0;
+    int size = stack_size(*a);
+    int *sorted = stack_to_array(*a);
+    sort_array(sorted, size);
+    int chunk_size = size / 4;
 
-    while (i < chunk_count)
+    // Push to B in 4 chunks
+    for (int i = 0; i < 4; i++)
     {
-        push_chunk_to_b(a, b, chunks[i], chunks[i + 1]);
-        i++;
+        int min = i * chunk_size;
+        int max = (i == 3) ? size - 1 : (i + 1) * chunk_size - 1;
+
+        while (has_numbers_in_range(*a, sorted[min], sorted[max]))
+        {
+            if ((*a)->value >= sorted[min] && (*a)->value <= sorted[max])
+            {
+                pb(a, b);
+                // Only rotate B for the first two chunks to keep smallest numbers at bottom
+                if (i < 2 && *b && (*b)->next && (*b)->value < (*b)->next->value)
+                    rb(b);
+            }
+            else
+            {
+                // Choose rotation direction based on closest target number
+                int target_pos = find_closest_in_range(*a, sorted[min], sorted[max]);
+                if (target_pos <= stack_size(*a) / 2)
+                    ra(a);
+                else
+                    rra(a);
+            }
+        }
     }
+
+    // Push back to A in descending order
     while (*b)
     {
-        max = find_max(*b);
-        while ((*b)->value != max)
+        int max = find_max(*b);
+        int pos = get_position(*b, max);
+        int size_b = stack_size(*b);
+        
+        if (pos <= size_b / 2)
         {
-            if (get_position(*b, max) <= stack_size(*b) / 2)
+            while ((*b)->value != max)
                 rb(b);
-            else
+        }
+        else
+        {
+            while ((*b)->value != max)
                 rrb(b);
         }
         pa(a, b);
-        if (*b && (*b)->next && (*b)->value < (*b)->next->value)
-            sb(b);
     }
-    free(chunks);
+    free(sorted);
 }
 
+// Helper function to find closest number in range
+int find_closest_in_range(t_stack *stack, int min_val, int max_val)
+{
+    int pos = 0;
+    int min_pos = INT_MAX;
+    int size = stack_size(stack);
+    t_stack *tmp = stack;
+
+    while (tmp)
+    {
+        if (tmp->value >= min_val && tmp->value <= max_val)
+        {
+            int curr_pos = (pos <= size / 2) ? pos : size - pos;
+            if (curr_pos < min_pos)
+                min_pos = pos;
+        }
+        pos++;
+        tmp = tmp->next;
+    }
+    return min_pos;
+}
+
+// Helper function to check if numbers exist in range
+int has_numbers_in_range(t_stack *stack, int min_val, int max_val)
+{
+    while (stack)
+    {
+        if (stack->value >= min_val && stack->value <= max_val)
+            return 1;
+        stack = stack->next;
+    }
+    return 0;
+}
+
+// Helper function to get position of next small number
+int get_next_small(t_stack *stack, int value)
+{
+    int pos = 0;
+    t_stack *tmp = stack;
+    
+    while (tmp)
+    {
+        if (tmp->value <= value)
+            return pos;
+        pos++;
+        tmp = tmp->next;
+    }
+    return pos;
+}
+
+// Helper function to check if there are numbers below a certain value
+int has_numbers_below(t_stack *stack, int value)
+{
+    while (stack)
+    {
+        if (stack->value <= value)
+            return 1;
+        stack = stack->next;
+    }
+    return 0;
+}
+
+void push_chunk_to_b(t_stack **a, t_stack **b, int min, int max)
+{
+    int pos_first, pos_second;
+    int size;
+    t_stack *temp;
+
+    while (has_values_in_range(*a, min, max))
+    {
+        pos_first = -1;
+        pos_second = -1;
+        size = stack_size(*a);
+        temp = *a;
+
+        // Find two closest numbers in range from both ends
+        for (int i = 0; i < size; i++)
+        {
+            if (temp->value >= min && temp->value <= max)
+            {
+                if (pos_first == -1)
+                    pos_first = i;
+                else
+                {
+                    pos_second = i;
+                    break;
+                }
+            }
+            temp = temp->next;
+        }
+
+        // Choose the most efficient rotation
+        if (pos_first != -1 && (pos_second == -1 || pos_first <= size - pos_second))
+        {
+            if (pos_first <= size / 2)
+            {
+                while (pos_first--)
+                    ra(a);
+            }
+            else
+            {
+                while (pos_first++ < size)
+                    rra(a);
+            }
+        }
+        else if (pos_second != -1)
+        {
+            if (pos_second <= size / 2)
+            {
+                while (pos_second--)
+                    ra(a);
+            }
+            else
+            {
+                while (pos_second++ < size)
+                    rra(a);
+            }
+        }
+        pb(a, b);
+    }
+}
 void rotate_to_top(t_stack **stack, int value)
 {
     int pos = get_position(*stack, value);
@@ -421,24 +588,46 @@ void rotate_closer_to_top(t_stack **a, int hold_first, int hold_second) {
     }
 }
 
-void push_chunk_to_b(t_stack **a, t_stack **b, int min, int max)
+void rotate_both_stacks(t_stack **a, t_stack **b, int target_a, int target_b)
 {
-    int hold_first;
-    int hold_second;
+    int size_a = stack_size(*a);
+    int size_b = stack_size(*b);
+    int pos_a = get_position(*a, target_a);
+    int pos_b = target_b;
 
-    while (has_values_in_range(*a, min, max))
+    // Both need rotation up
+    while (pos_a > 0 && pos_b > 0 && pos_a <= size_a / 2 && pos_b <= size_b / 2)
     {
-        hold_first = find_hold_first(*a, min, max);
-        hold_second = find_hold_second(*a, min, max);
-        if (hold_first != -1 && hold_second != -1)
-            rotate_closer_to_top(a, hold_first, hold_second);
-        else if (hold_first != -1)
-            rotate_to_top(a, hold_first);
-        else if (hold_second != -1)
-            rotate_to_top(a, hold_second);
-        pb(a, b);
+        rr(a, b);
+        pos_a--;
+        pos_b--;
+    }
+    // Both need rotation down
+    while (pos_a > size_a / 2 && pos_b > size_b / 2 && pos_a < size_a && pos_b < size_b)
+    {
+        rrr(a, b);
+        pos_a = (pos_a + 1) % size_a;
+        pos_b = (pos_b + 1) % size_b;
+    }
+    // Complete remaining rotations individually
+    while ((*a)->value != target_a)
+    {
+        if (pos_a <= size_a / 2)
+            ra(a);
+        else
+            rra(a);
+    }
+    while (pos_b > 0)
+    {
+        if (pos_b <= size_b / 2)
+            rb(b);
+        else
+            rrb(b);
+        pos_b--;
     }
 }
+
+
 
 
 int find_hold_first(t_stack *stack, int min, int max)
