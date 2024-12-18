@@ -49,4 +49,7 @@ int         get_max(t_stack *stack);
 int         has_duplicates(t_stack *stack);
 void        sort_stack(t_stack **a, t_stack **b);
 
+void	print_final_state(t_stack *stack);
+void	ft_putnbr_fd(int n, int fd);
+int	is_sorted(t_stack *stack);
 #endif
