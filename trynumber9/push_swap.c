@@ -180,7 +180,10 @@ void	sort_chunks(t_stack **a, t_stack **b, int size)
     int	min;
     int	max;
 
-    chunk_size = (size <= 100) ? 15 : 30;
+    if (size <= 100)
+        chunk_size = size / 5;
+    else
+        chunk_size = size / 8;
     min = 0;
     max = chunk_size;
     normalize_stack(a);
