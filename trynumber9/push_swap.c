@@ -37,22 +37,34 @@ static int	get_index(t_stack *stack, int value)
     return (index);
 }
 
+static void set_index(t_stack **stack, int value, int index)
+{
+    t_stack *tmp;
+
+    tmp = *stack;
+    while (tmp)
+    {
+        if (tmp->value == value)
+        {
+            tmp->index = index;
+            return ;
+        }
+        tmp = tmp->next;
+    }
+}
+
 static void	normalize_stack(t_stack **stack)
 {
     t_stack	*temp;
-    t_stack	*new_stack;
     int		index;
 
     temp = *stack;
-    new_stack = NULL;
     while (temp)
     {
         index = get_index(*stack, temp->value);
-        stack_add_back(&new_stack, stack_new(index));
+        set_index(stack, temp->value, index);
         temp = temp->next;
     }
-    stack_clear(stack);
-    *stack = new_stack;
 }
 
 int	is_sorted(t_stack *stack)
@@ -143,7 +155,7 @@ int	is_chunk_empty(t_stack *stack, int min, int max)
 {
     while (stack)
     {
-        if (stack->value >= min && stack->value < max)
+        if (stack->index >= min && stack->index < max)
             return (0);
         stack = stack->next;
     }
@@ -152,66 +164,118 @@ int	is_chunk_empty(t_stack *stack, int min, int max)
 
 int	find_max_position(t_stack *stack)
 {
-    int		max;
-    int		pos;
+    int		max_index;
     int		max_pos;
     t_stack	*temp;
 
-    max = stack->value;
-    pos = 0;
-    max_pos = 0;
+    if(!stack)
+        return (0);
     temp = stack;
+    max_index = stack->index;
+    max_pos = stack->pos;
     while (temp)
     {
-        if (temp->value > max)
+        if (temp->index > max_index)
         {
-            max = temp->value;
-            max_pos = pos;
+            max_index = temp->index;
+            max_pos = temp->pos;
         }
-        pos++;
         temp = temp->next;
     }
     return (max_pos);
 }
-
-void	sort_chunks(t_stack **a, t_stack **b, int size)
+void get_target_position(t_stack **a, t_stack **b)
 {
-    int	chunk_size;
-    int	min;
-    int	max;
+    t_stack *tmp_a;
+    t_stack *tmp_b;
+    int target_pos;
+
+    tmp_b = *b;
+    while (tmp_b)
+    {
+        target_pos = 0;
+        tmp_a = *a;
+        // Find the smallest number in A that is larger than B
+        while (tmp_a)
+        {
+            if (tmp_a->index > tmp_b->index)
+            {
+                target_pos = tmp_a->pos;
+                break;
+            }
+            tmp_a = tmp_a->next;
+        }
+        tmp_b->target_pos = target_pos;
+        tmp_b = tmp_b->next;
+    }
+}
+
+void sort_chunks(t_stack **a, t_stack **b, int size)
+{
+    int chunk_size;
+    int pushed;
+    int total_chunks;
+    int current_chunk;
+    int min;
+    int max;
+    int max_pos;
+    int size_b;
 
     if (size <= 100)
-        chunk_size = size / 5;
+        chunk_size = size / 3;
     else
         chunk_size = size / 8;
-    min = 0;
-    max = chunk_size;
+    total_chunks = (size / chunk_size) + (size % chunk_size != 0);
+    current_chunk = 0;
+    pushed = 0;
     normalize_stack(a);
-    while (*a)
+    while (current_chunk < total_chunks && *a)
     {
-        if ((*a)->value >= min && (*a)->value < max)
+        min = current_chunk * chunk_size;  
+        max = (current_chunk + 1) * chunk_size; 
+        while (*a && pushed < max)
         {
-            pb(a, b);
-            if ((*b)->value < min + (chunk_size / 2))
-                rb(b);
+            update_positions(*a);
+            if ((*a)->index >= min && (*a)->index < max)
+            {
+                pb(a, b);
+                if ((*b)->index < min + (chunk_size / 2))
+                    rb(b);
+                pushed++;
+            }
+            else if ((*a)->pos <= (size / 2))
+                ra(a);
+            else
+                rra(a);
         }
-        else
-            ra(a);
-        if (!*a || is_chunk_empty(*a, min, max))
-        {
-            min = max;
-            max += chunk_size;
-        }
+        current_chunk++;
     }
     while (*b)
     {
-        max = find_max_position(*b);
-        if (max <= stack_size(*b) / 2)
-            while (max--)
+        update_positions(*a);
+        update_positions(*b);
+        get_target_position(a, b);
+        max_pos = find_max_position(*b);
+        size_b = stack_size(*b);
+        if ((*b)->target_pos <= stack_size(*a) / 2)
+        {
+            while ((*b)->target_pos--)
+                ra(a);
+        }
+        else
+        {
+            while ((*b)->target_pos++ < stack_size(*a))
+                rra(a);
+        }
+
+        // Move B to correct position
+        if (max_pos <= size_b / 2)
+            while (max_pos--)
                 rb(b);
         else
-            while (max++ < stack_size(*b))
+            while (max_pos++ < size_b)
                 rrb(b);
+                
         pa(a, b);
     }
 }
@@ -236,9 +300,9 @@ void	sort_stack(t_stack **a, t_stack **b)
         sort_chunks(a, b, size);
 }
 
-void	print_final_state(t_stack *stack)
+void	print_final_state_values(t_stack *stack)
 {
-    write(2, "\nSorted stack: ", 14);
+    write(2, "\nSorted stack values: ", 14);
     while (stack)
     {
         ft_putnbr_fd(stack->value, 2);
@@ -247,6 +311,32 @@ void	print_final_state(t_stack *stack)
         stack = stack->next;
     }
     write(2, "\n", 1);
+}
+
+void	print_final_state_indexes(t_stack *stack)
+{
+    write(2, "\nSorted stack indexes: ", 14);
+    while (stack)
+    {
+        ft_putnbr_fd(stack->index, 2);
+        if (stack->next)
+            write(2, " ", 1);
+        stack = stack->next;
+    }
+    write(2, "\n", 1);
+}
+void update_positions(t_stack *stack)
+{
+    int i;
+    t_stack *tmp;
+    i = 0;
+    tmp = stack;
+    while (tmp)
+    {
+        tmp->pos = i;
+        i++;
+        tmp = tmp->next;
+    }
 }
 
 int	main(int argc, char **argv)
@@ -276,7 +366,9 @@ int	main(int argc, char **argv)
         return (1);
     }
     sort_stack(&a, &b);
-    print_final_state(a);
+    print_final_state_values(a);
+
+    //print_final_state_indexes(a);
     stack_clear(&a);
     stack_clear(&b);
     return (0);

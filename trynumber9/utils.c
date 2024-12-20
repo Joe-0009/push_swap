@@ -20,6 +20,9 @@ t_stack *stack_new(int value)
     if (!new)
         return (NULL);
     new->value = value;
+    new->index = 0;
+    new->pos = -1;
+    new->target_pos = -1;
     new->next = NULL;
     return (new);
 }
@@ -92,11 +95,11 @@ int get_max(t_stack *stack)
 
     if (!stack)
         return (0);
-    max = stack->value;
+    max = stack->index;
     while (stack)
     {
-        if (stack->value > max)
-            max = stack->value;
+        if (stack->index > max)
+            max = stack->index;
         stack = stack->next;
     }
     return (max);

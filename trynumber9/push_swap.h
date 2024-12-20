@@ -19,6 +19,9 @@
 typedef struct s_stack
 {
     int             value;
+    int             index;
+    int             pos;
+    int             target_pos;
     struct s_stack  *next;
 }   t_stack;
 
@@ -28,6 +31,7 @@ int         stack_add_back(t_stack **stack, t_stack *new);
 void        stack_clear(t_stack **stack);
 int         stack_size(t_stack *stack);
 int         *stack_to_array(t_stack *stack);
+void        update_positions(t_stack *stack);
 
 /* Operations */
 void        sa(t_stack **a);
@@ -51,5 +55,5 @@ void        sort_stack(t_stack **a, t_stack **b);
 
 void	print_final_state(t_stack *stack);
 void	ft_putnbr_fd(int n, int fd);
-int	is_sorted(t_stack *stack);
+int     is_sorted(t_stack *stack);
 #endif
