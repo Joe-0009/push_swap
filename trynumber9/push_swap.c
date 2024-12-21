@@ -189,26 +189,94 @@ void get_target_position(t_stack **a, t_stack **b)
     t_stack *tmp_a;
     t_stack *tmp_b;
     int target_pos;
+    int closest_larger;
 
     tmp_b = *b;
     while (tmp_b)
     {
+        closest_larger = INT_MAX;
         target_pos = 0;
         tmp_a = *a;
-        // Find the smallest number in A that is larger than B
         while (tmp_a)
         {
-            if (tmp_a->index > tmp_b->index)
+            if (tmp_a->index > tmp_b->index && tmp_a->index < closest_larger)
             {
+                closest_larger = tmp_a->index;
                 target_pos = tmp_a->pos;
-                break;
             }
             tmp_a = tmp_a->next;
+        }
+        // If no larger number found, target the smallest number in stack A
+        if (closest_larger == INT_MAX)
+        {
+            tmp_a = *a;
+            closest_larger = INT_MAX;
+            while (tmp_a)
+            {
+                if (tmp_a->index < closest_larger)
+                {
+                    closest_larger = tmp_a->index;
+                    target_pos = tmp_a->pos;
+                }
+                tmp_a = tmp_a->next;
+            }
         }
         tmp_b->target_pos = target_pos;
         tmp_b = tmp_b->next;
     }
 }
+
+/*static int find_closest_in_chunk(t_stack *stack, int min, int max)
+{
+    t_stack *tmp;
+    int closest_pos;
+    int min_distance;
+    int current_pos;
+
+    tmp = stack;
+    closest_pos = 0;
+    min_distance = INT_MAX;
+    current_pos = 0;
+
+    while (tmp)
+    {
+        if (tmp->index >= min && tmp->index < max)
+        {
+            if (current_pos < min_distance)
+            {
+                min_distance = current_pos;
+                closest_pos = current_pos;
+            }
+        }
+        current_pos++;
+        tmp = tmp->next;
+    }
+    return (closest_pos);
+}
+
+static void    rotate_optimal(t_stack **stack, int pos, int size, char stack_name)
+{
+    if (pos <= size / 2)
+    {
+        while (pos--)
+        {
+            if (stack_name == 'a')
+                ra(stack);
+            else
+                rb(stack);
+        }
+    }
+    else
+    {
+        while (pos++ < size)
+        {
+            if (stack_name == 'a')
+                rra(stack);
+            else
+                rrb(stack);
+        }
+    }
+}*/
 
 void sort_chunks(t_stack **a, t_stack **b, int size)
 {
@@ -222,13 +290,15 @@ void sort_chunks(t_stack **a, t_stack **b, int size)
     int size_b;
 
     if (size <= 100)
-        chunk_size = size / 3;
+        chunk_size = size / 5;
     else
         chunk_size = size / 8;
     total_chunks = (size / chunk_size) + (size % chunk_size != 0);
     current_chunk = 0;
     pushed = 0;
     normalize_stack(a);
+    
+    // Phase 1: Push to B in chunks
     while (current_chunk < total_chunks && *a)
     {
         min = current_chunk * chunk_size;  
@@ -239,7 +309,8 @@ void sort_chunks(t_stack **a, t_stack **b, int size)
             if ((*a)->index >= min && (*a)->index < max)
             {
                 pb(a, b);
-                if ((*b)->index < min + (chunk_size / 2))
+                // Only rotate if number is in lower half of chunk and stack has more than 2 elements
+                if ((*b)->index < min + (chunk_size / 2) && (*b)->next && (*b)->index < (*b)->next->index)
                     rb(b);
                 pushed++;
             }
@@ -250,36 +321,71 @@ void sort_chunks(t_stack **a, t_stack **b, int size)
         }
         current_chunk++;
     }
+
+    // Phase 2: Push back to A
     while (*b)
     {
         update_positions(*a);
         update_positions(*b);
-        get_target_position(a, b);
         max_pos = find_max_position(*b);
         size_b = stack_size(*b);
-        if ((*b)->target_pos <= stack_size(*a) / 2)
+
+        // Find next largest number position
+        int next_max_pos = -1;
+        int next_max_index = -1;
+        t_stack *temp = *b;
+        int pos = 0;
+        
+        while (temp)
         {
-            while ((*b)->target_pos--)
-                ra(a);
-        }
-        else
-        {
-            while ((*b)->target_pos++ < stack_size(*a))
-                rra(a);
+            if (temp->index > next_max_index && temp->index < (*b)->index)
+            {
+                next_max_index = temp->index;
+                next_max_pos = pos;
+            }
+            pos++;
+            temp = temp->next;
         }
 
-        // Move B to correct position
+        // Optimize rotation based on both current max and next max
         if (max_pos <= size_b / 2)
-            while (max_pos--)
-                rb(b);
+        {
+            if (next_max_pos != -1 && next_max_pos <= size_b / 2 && 
+                next_max_pos < max_pos)
+            {
+                // Rotate to next max first if it's more efficient
+                while (next_max_pos--)
+                    rb(b);
+                pa(a, b);
+                while (max_pos-- > next_max_pos)
+                    rb(b);
+            }
+            else
+            {
+                while (max_pos--)
+                    rb(b);
+            }
+        }
         else
-            while (max_pos++ < size_b)
-                rrb(b);
-                
+        {
+            if (next_max_pos != -1 && next_max_pos > size_b / 2 && 
+                next_max_pos > max_pos)
+            {
+                while (next_max_pos++ < size_b)
+                    rrb(b);
+                pa(a, b);
+                while (max_pos++ < next_max_pos)
+                    rrb(b);
+            }
+            else
+            {
+                while (max_pos++ < size_b)
+                    rrb(b);
+            }
+        }
         pa(a, b);
     }
 }
-
 void	sort_stack(t_stack **a, t_stack **b)
 {
     int	size;
