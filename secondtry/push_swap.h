@@ -70,4 +70,7 @@ int		is_sorted(t_stack *stack);
 int		has_duplicates(t_stack *stack);
 void	ft_putnbr(int n);
 
+int *stack_to_array(t_stack *stack);
+void sort_array(int *arr, int size);
+void index_stack(t_stack **stack);
 #endif

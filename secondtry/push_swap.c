@@ -1,15 +1,3 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   push_swap.c                                        :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: Joe-0009 <Joe-0009@student.42.fr>         +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/12/18 21:33:42 by Joe-0009         #+#    #+#             */
-/*   Updated: 2024/12/18 21:33:42 by Joe-0009        ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
-
 #include "push_swap.h"
 
 static void	print_sorted_stack(t_stack *stack)
@@ -27,7 +15,7 @@ static void	print_sorted_stack(t_stack *stack)
     write(1, "\n", 1);
 }
 
-static void	index_stack(t_stack **stack)
+/*static void	index_stack(t_stack **stack)
 {
     t_stack	*ptr;
     t_stack	*tmp;
@@ -57,7 +45,7 @@ static void	index_stack(t_stack **stack)
         }
         index++;
     }
-}
+}*/
 
 static int	check_number(char *str)
 {
